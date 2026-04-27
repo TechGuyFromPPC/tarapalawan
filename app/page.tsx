@@ -1,83 +1,141 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
+// 1. We wrap the content in a Suspense boundary because useSearchParams 
+// requires it in Next.js Client Components.
 export default function Home() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center font-black uppercase italic animate-pulse text-slate-400">Syncing...</div>}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('All'); // New state
-  const categories = ['All', 'Music', 'Nature', 'Sports', 'Food', 'Social', 'General'];
+  const [loading, setLoading] = useState(true);
+  
+  // 2. Determine location from URL (?loc=Coron) or default to 'PPC'
+  const selectedLocation = searchParams.get('loc') || 'PPC';
 
   useEffect(() => {
     const fetchEvents = async () => {
-      let query = supabase.from('events').select('*').order('created_at', { ascending: false });
-
-      // Apply filter if category is not 'All'
-      if (selectedCategory !== 'All') {
-        query = query.eq('category', selectedCategory);
+      setLoading(true);
+      let query = supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      // 3. Filter by location (PPC, El Nido, or Coron)
+      if (selectedLocation !== 'All') {
+        query = query.eq('location', selectedLocation);
       }
 
       const { data } = await query;
       if (data) setEvents(data);
+      setLoading(false);
     };
 
     fetchEvents();
-  }, [selectedCategory]); // Re-run whenever selectedCategory changes
+  }, [selectedLocation]);
+
+  if (loading) return <div className="p-20 text-center font-black uppercase italic animate-pulse text-blue-600">Finding the vibe...</div>;
 
   return (
-    <div className="pb-24"> 
-      <div className="mb-10">
-        <h2 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-none mb-6">Explore</h2>
+    <div className="pb-24 pt-6 animate-in fade-in duration-700">
+      
+      {/* FEATURED TOP 3 */}
+      <section className="mb-10">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 px-6 flex items-center gap-2">
+          <span className="w-2 h-2 bg-blue-600 rounded-full animate-ping" />
+          Featured in {selectedLocation}
+        </h2>
         
-        {/* UPDATED PILLS WITH CLICK LOGIC */}
-        <div className="flex gap-2 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-          {categories.map((cat) => (
-            <button 
-              key={cat} 
-              onClick={() => setSelectedCategory(cat)}
-              className={`whitespace-nowrap px-6 py-2 rounded-full border-2 font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
-                selectedCategory === cat 
-                ? 'bg-blue-600 border-blue-600 text-white' 
-                : 'border-slate-100 dark:border-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
-        <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" /> 
-        {selectedCategory === 'All' ? 'Top Picks in PPC' : `${selectedCategory} Events`}
-      </p>
-
-      {/* EVENTS GRID (Remains the same) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {events.length > 0 ? (
-          events.map((event) => (
-            <Link href={`/event/${event.id}`} key={event.id} className="group relative overflow-hidden rounded-[2.5rem] bg-slate-100 dark:bg-slate-800 aspect-[4/5] transition-transform active:scale-95">
-              {event.image_url && (
-                <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-8 left-8 right-8 text-white">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2 block">{event.category}</span>
-                <h3 className="text-2xl font-black uppercase italic leading-tight">{event.title}</h3>
-                <p className="text-white/60 text-[10px] font-bold mt-1 uppercase tracking-tighter">📍 {event.location}</p>
+          <div className="flex gap-4 overflow-x-auto px-6 snap-x snap-mandatory no-scrollbar pb-4">
+            {events.slice(0, 3).map((event) => (
+              <Link 
+                href={`/event/${event.id}`} 
+                key={event.id} 
+                className="min-w-[85%] snap-center relative aspect-[16/9] rounded-[2rem] overflow-hidden bg-zinc-900 shadow-2xl"
+              >
+                <img src={event.image_url} className="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-700 hover:scale-105" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6">
+                  <span className="px-2 py-1 bg-white/10 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest rounded border border-white/20 mb-2 inline-block">
+                    {event.category}
+                  </span>
+                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">{event.title}</h3>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="px-6 py-10 bg-slate-50 dark:bg-zinc-900 mx-6 rounded-[2rem] text-center">
+            <p className="text-[10px] font-black uppercase text-slate-400">No featured events here yet.</p>
+          </div>
+        )}
+      </section>
+
+      {/* DISCOVER MORE LIST */}
+      <section className="px-6 space-y-3">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4">Discover More</h2>
+        
+        {events.length > 3 ? (
+          events.slice(3).map((event) => (
+            <Link 
+              href={`/event/${event.id}`} 
+              key={event.id} 
+              className="flex items-center gap-4 bg-slate-50 dark:bg-zinc-950 p-2 rounded-[1.8rem] border border-slate-100 dark:border-zinc-900 active:scale-[0.97] transition-all shadow-sm"
+            >
+              <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-zinc-800">
+                <img src={event.image_url} className="w-full h-full object-cover" />
+              </div>
+
+              <div className="flex-1 min-w-0 pr-2">
+                <div className="flex justify-between items-start">
+                  <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest">{event.category}</p>
+                  <p className="text-[8px] font-bold text-slate-400 tabular-nums">{event.event_date}</p>
+                </div>
+                <h4 className="text-base font-black uppercase italic leading-tight truncate mt-0.5">
+                  {event.title}
+                </h4>
+                
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-1.5">
+                      <div className="w-4 h-4 rounded-full bg-blue-100 dark:bg-zinc-800 border border-white dark:border-black" />
+                      <div className="w-4 h-4 rounded-full bg-blue-200 dark:bg-zinc-700 border border-white dark:border-black" />
+                    </div>
+                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">
+                      Interested
+                    </p>
+                  </div>
+                  <div className="text-[8px] font-black uppercase text-blue-600 tracking-tighter bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded">
+                    Join →
+                  </div>
+                </div>
               </div>
             </Link>
           ))
-        ) : (
-          <div className="col-span-full py-20 text-center">
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No {selectedCategory} events found yet.</p>
-          </div>
+        ) : events.length === 0 ? null : (
+          <p className="text-center text-[10px] font-black uppercase text-slate-300 py-10">That's all for today!</p>
         )}
-      </div>
+      </section>
 
-      {/* FAB (Remains the same) */}
-      <Link href="/create" className="fixed bottom-8 right-8 z-[100] bg-blue-600 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-[0_20px_50px_rgba(37,99,235,0.4)] border-4 border-white dark:border-slate-900">
-        <span className="text-4xl font-light mb-1">+</span>
+      {/* FAB */}
+      <Link 
+        href="/create" 
+        className="fixed bottom-8 right-6 w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-2xl flex items-center justify-center shadow-2xl active:scale-90 transition-transform z-[110] border border-white/10"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
       </Link>
     </div>
   );

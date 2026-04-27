@@ -1,142 +1,117 @@
 'use client';
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import { useTheme } from '@/lib/ThemeContext';
-import Link from 'next/link';
+import { useTheme } from '../../lib/ThemeContext';
 
-export default function CreateActivity() {
+export default function CreateEvent() {
+  const { user } = useTheme();
   const router = useRouter();
-  const { user, darkMode } = useTheme();
-  
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('General');
-  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 16));
+  
+  // Form State
+  const [title, setTitle] = useState('');
+  const [location, setLocation] = useState('PPC');
+  const [category, setCategory] = useState('General');
+  const [date, setDate] = useState('');
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return alert("Please login first");
     setLoading(true);
 
-    try {
-      let finalImageUrl = '';
-
-      // 1. Upload the file to the 'event-images' bucket
-      if (file) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('event-images')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        // 2. Get the public URL for the record
-        const { data: { publicUrl } } = supabase.storage
-          .from('event-images')
-          .getPublicUrl(filePath);
-        
-        finalImageUrl = publicUrl;
+    const { error } = await supabase.from('events').insert([
+      { 
+        title, 
+        location, 
+        category, 
+        event_date: date,
+        creator_id: user.id 
       }
+    ]);
 
-      // 3. Save everything to the 'events' table
-    const { error: insertError } = await supabase.from('events').insert([
-  { 
-    title, 
-    description, 
-    category, 
-    location, 
-    image_url: finalImageUrl, 
-    user_id: user.id,
-    event_date: eventDate // This fixes the 'null' error
-  }
-]);
-
-      if (insertError) throw insertError;
-
+    if (error) {
+      alert(error.message);
+    } else {
       router.push('/');
       router.refresh();
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    } finally {
-      setLoading(false);
     }
-  }
+    setLoading(false);
+  };
 
   return (
-    <main className={`min-h-screen p-6 flex items-center justify-center ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
-      <div className={`max-w-xl w-full p-10 rounded-[3rem] shadow-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+    <div className="max-w-md mx-auto px-6 pt-10 pb-24">
+      <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8">Host Event</h1>
+
+      <form onSubmit={handleCreate} className="space-y-8">
         
-        <Link href="/" className="inline-flex items-center gap-2 mb-8 text-[10px] font-black text-slate-400 hover:text-blue-600 transition-all uppercase tracking-widest">
-          ← Cancel
-        </Link>
-
-        <h2 className="text-3xl font-black tracking-tighter uppercase italic mb-8">Host an Activity</h2>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Title */}
-          <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 mb-2 block">Event Name</label>
-            <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Sunset Yoga"
-              className={`w-full px-6 py-4 rounded-2xl border-2 focus:border-blue-500 outline-none transition-all ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} />
+        {/* 1. LOCATION SELECTOR (The "Breadcrumb" style buttons) */}
+        <div className="space-y-3">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Where in Palawan?</label>
+          <div className="grid grid-cols-3 gap-2">
+            {['PPC', 'El Nido', 'Coron'].map((loc) => (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => setLocation(loc)}
+                className={`py-3 rounded-2xl text-[10px] font-black uppercase transition-all ${
+                  location === loc ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-slate-100 dark:bg-zinc-900'
+                }`}
+              >
+                {loc}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Description */}
-          <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 mb-2 block">The Vibe</label>
-            <textarea required value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Tell us more..."
-              className={`w-full px-6 py-4 rounded-2xl border-2 focus:border-blue-500 outline-none transition-all resize-none ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} />
-          </div>
+        {/* 2. TITLE INPUT */}
+        <div className="space-y-3">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Event Name</label>
+          <input 
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Sunset Yoga"
+            className="w-full bg-slate-50 dark:bg-zinc-950 border-none rounded-2xl px-6 py-4 font-bold focus:ring-2 focus:ring-blue-600 outline-none"
+          />
+        </div>
 
-          {/* Photo Upload - THE CORE CHANGE */}
-          <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 mb-2 block">Cover Photo</label>
-            <div className={`relative group border-2 border-dashed rounded-2xl p-8 text-center transition-all ${darkMode ? 'border-slate-600 hover:border-blue-500' : 'border-slate-200 hover:border-blue-500'}`}>
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="absolute inset-0 opacity-0 cursor-pointer" 
-              />
-              <div className="space-y-2">
-                <p className="text-sm font-black text-blue-500 uppercase tracking-widest">
-                  {file ? '✅ ' + file.name : '📸 Click to Upload'}
-                </p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">JPG, PNG or WEBP (Max 5MB)</p>
-              </div>
-            </div>
-          </div>
-<div>
-  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 mb-2 block">When is the Tara?</label>
-  <input 
-    required 
-    type="datetime-local" 
-    value={eventDate} 
-    onChange={(e) => setEventDate(e.target.value)}
-    className={`w-full px-6 py-4 rounded-2xl border-2 focus:border-blue-500 outline-none transition-all ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} 
-  />
-</div>
-          <div className="grid grid-cols-2 gap-4">
-            <input required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location"
-              className={`px-6 py-4 rounded-2xl border-2 outline-none ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-slate-50 border-slate-100'}`} />
-            <select value={category} onChange={(e) => setCategory(e.target.value)}
-              className={`px-6 py-4 rounded-2xl border-2 outline-none ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-slate-50 border-slate-100'}`}>
-              {['General', 'Music', 'Nature', 'Sports', 'Food', 'Social'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
+        {/* 3. CATEGORY & DATE (Side by Side) */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Category</label>
+            <select 
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-zinc-950 rounded-2xl px-4 py-4 font-bold text-xs appearance-none outline-none"
+            >
+              <option>Music</option>
+              <option>Sports</option>
+              <option>Food</option>
+              <option>Nature</option>
+              <option>Social</option>
             </select>
           </div>
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Date</label>
+            <input 
+              type="date" 
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-zinc-950 rounded-2xl px-4 py-4 font-bold text-xs outline-none"
+            />
+          </div>
+        </div>
 
-          <button disabled={loading} type="submit"
-            className="w-full bg-blue-600 text-white py-6 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">
-            {loading ? 'Uploading Tara!...' : 'Post Activity'}
-          </button>
-        </form>
-      </div>
-    </main>
+        {/* SUBMIT BUTTON */}
+        <button 
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase italic tracking-widest shadow-xl shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {loading ? 'Posting...' : 'Push to Feed →'}
+        </button>
+      </form>
+    </div>
   );
 }

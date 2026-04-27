@@ -16,29 +16,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // --- PART A: THEME LOGIC ---
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') setDarkMode(true);
+ useEffect(() => {
+  // 1. Get initial session quietly
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUser(session?.user ?? null);
+  });
 
-    // --- PART B: AUTH LOGIC ---
-    // Check if a user is already logged in when the app starts
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
+  // 2. Listen for changes (Sign In / Sign Out / Token Refresh)
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (_event === 'SIGNED_OUT') {
+      setUser(null);
+    } else if (session) {
+      setUser(session.user);
+    }
+  });
 
-    initializeAuth();
-
-    // Listen for changes (e.g., when a user logs in or out)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  return () => subscription.unsubscribe();
+}, []);
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
