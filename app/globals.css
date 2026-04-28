@@ -34,3 +34,19 @@ body {
     scrollbar-width: none;
   }
 }
+
+/* app/globals.css */
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Hides the scrollbar track for a cleaner mobile look */
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.custom-scroll-dampening {
+  -webkit-overflow-scrolling: touch; /* Momentum scrolling for iOS Safari */
+  scroll-behavior: smooth;
+}
