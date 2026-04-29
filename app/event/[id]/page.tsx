@@ -1,89 +1,108 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useTheme } from '@/lib/ThemeContext';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import ChatRoom from '@/app/components/ChatRoom';
 
-export default function EventDetails() {
+export default function EventDetail() {
   const { id } = useParams();
-  const { user, darkMode } = useTheme();
   const router = useRouter();
   const [event, setEvent] = useState<any>(null);
-  const [isJoined, setIsJoined] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
+    const fetchEvent = async () => {
+      const { data } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', id)
+        .single();
+      setEvent(data);
+      setLoading(false);
+    };
     fetchEvent();
-    if (user) checkJoinedStatus();
-  }, [id, user]);
+  }, [id]);
 
-  async function fetchEvent() {
-    const { data } = await supabase.from('events').select('*, participants(count)').eq('id', id).single();
-    if (data) setEvent(data);
-    setLoading(false);
-  }
-
-  async function checkJoinedStatus() {
-    const { data } = await supabase.from('participants').select('*').eq('event_id', id).eq('user_id', user?.id).single();
-    if (data) setIsJoined(true);
-  }
-
-  async function handleJoin() {
-    if (!user) { router.push('/login'); return; }
-    const { error } = await supabase.from('participants').insert([{ event_id: id, user_id: user.id }]);
-    if (!error) { setIsJoined(true); fetchEvent(); }
-  }
-
-  if (loading || !event) return <div className="p-20 text-center font-black animate-pulse uppercase tracking-[.5em]">Loading Tara!...</div>;
+  if (loading) return <div className="p-20 text-center font-black animate-pulse text-blue-600 uppercase tracking-widest">Loading Vibe...</div>;
+  if (!event) return <div className="p-20 text-center">Event not found.</div>;
 
   return (
-    <main className={`min-h-screen p-6 ${darkMode ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
-      <div className="max-w-4xl mx-auto">
-        <Link href="/" className="inline-flex items-center gap-2 mb-10 text-[10px] font-black text-blue-600 hover:translate-x-[-4px] transition-transform uppercase tracking-widest">
-          ← Back to Tara!
-        </Link>
+    <div className="min-h-screen bg-white dark:bg-black pb-40"> {/* Increased padding for footer safety */}
+      
+      {/* 1. HERO IMAGE */}
+      <div className="relative w-full aspect-[4/3] md:aspect-video bg-zinc-900">
+        <button 
+          onClick={() => router.back()}
+          className="absolute top-6 left-6 z-20 h-10 w-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform"
+        >
+          ←
+        </button>
+        <img src={event.image_url} className="w-full h-full object-cover" alt={event.title} />
+        <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black to-transparent opacity-20" />
+      </div>
 
-        <div className="relative h-[400px] rounded-[4rem] overflow-hidden shadow-2xl mb-12">
-          <img src={event.image_url || 'https://via.placeholder.com/1200'} className="w-full h-full object-cover" />
-          <div className="absolute top-8 left-8 flex gap-3">
-             <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-5 py-2.5 rounded-3xl shadow-xl flex items-center gap-2">
-                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">
-                  {event.participants?.[0]?.count || 0} Going
-                </span>
-             </div>
+      {/* 2. FLOATING TITLE BLOCK */}
+      <section className="px-6 -mt-10 relative z-10">
+        <div className="bg-white dark:bg-zinc-950 p-8 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-zinc-900">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+              {event.category}
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              {event.join_count || 0} People In
+            </p>
           </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-12">
-            <h1 className="text-6xl font-black text-white tracking-tighter uppercase leading-[0.85]">{event.title}</h1>
-            <p className="text-white/60 font-black mt-4 uppercase tracking-widest text-xs">📍 {event.location}</p>
+
+          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-[0.85] mb-6">
+            {event.title}
+          </h1>
+
+          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-100 dark:border-zinc-900">
+            <div>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">When</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">{event.event_date || 'Live Now'}</p>
+            </div>
+            <div>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Where</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate">{event.location}</p>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div className="grid lg:grid-cols-3 gap-12">
-          <div className="lg:col-span-2 space-y-10">
-            <div className={`p-12 rounded-[3.5rem] ${darkMode ? 'bg-slate-800' : 'bg-white shadow-xl shadow-slate-200/50'}`}>
-              <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] mb-6 italic">The Vibe</h3>
-              <p className="text-xl leading-relaxed opacity-90 font-medium">{event.description}</p>
-            </div>
-            {showChat && <ChatRoom eventId={id as string} user={user} />}
+      {/* 3. DESCRIPTION CONTENT */}
+      <section className="px-8 mt-12 pb-20">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600 mb-6">The Experience</h2>
+        
+        <div className="space-y-6">
+          <p className="text-lg leading-relaxed font-medium text-slate-700 dark:text-slate-300 first-letter:text-6xl first-letter:font-black first-letter:mr-3 first-letter:float-left first-letter:text-blue-600 first-letter:italic">
+            {event.description}
+          </p>
+          
+          <div className="flex flex-wrap gap-2 pt-6">
+            {['🔥 High Energy', '🎵 Live Music', '🍹 Cocktails', '🌴 Outdoor'].map(vibe => (
+              <span key={vibe} className="px-4 py-2 bg-slate-50 dark:bg-zinc-900 rounded-2xl text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide border border-slate-100 dark:border-zinc-800">
+                {vibe}
+              </span>
+            ))}
           </div>
+        </div>
+      </section>
 
-          <div className="space-y-6">
-             {isJoined ? (
-               <button onClick={() => setShowChat(!showChat)} className="w-full bg-blue-600 text-white py-8 rounded-[3rem] font-black text-2xl shadow-2xl hover:scale-105 transition-all uppercase italic">
-                 {showChat ? 'Hide Chat' : '💬 Chat Room'}
-               </button>
-             ) : (
-               <button onClick={handleJoin} className="w-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 py-8 rounded-[3rem] font-black text-2xl shadow-2xl hover:scale-105 transition-all uppercase">
-                 Join Now
-               </button>
-             )}
-          </div>
+      {/* 4. FIXED ACTION FOOTER */}
+      <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-white dark:from-black via-white/95 dark:via-black/95 to-transparent pt-12 z-50">
+        <div className="flex gap-3">
+          {/* Main Join Button */}
+          <Link 
+            href={`/chat/${event.id}`}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-blue-500/40 active:scale-95 transition-all flex items-center justify-center gap-3"
+          >
+            <span>Join the Pulse</span>
+            <div className="h-2 w-2 bg-white rounded-full animate-ping" />
+          </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

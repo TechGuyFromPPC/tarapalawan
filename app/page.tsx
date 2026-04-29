@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-
+import Footer from './components/Footer';
 export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -178,6 +178,7 @@ export default function Home() {
           </div>
         )}
       </section>
+        <Footer />
     </div>
   );
 }

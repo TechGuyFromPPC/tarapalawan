@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/ThemeContext';
 import Link from 'next/link';
+import Footer from '../components/Footer'; // adjust path as neede
 
 export default function LandingPage() {
   const { darkMode, user } = useTheme();
@@ -76,6 +77,7 @@ export default function LandingPage() {
             </div>
           )}
         </section>
+      
       </main>
 
       {/* --- FLOATING BOTTOM NAVIGATION (THE "HOME" BUTTON) --- */}
