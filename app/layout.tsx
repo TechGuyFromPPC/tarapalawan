@@ -22,7 +22,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       setUser(session?.user ?? null);
     };
     checkUser();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -42,11 +41,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-      <body className="h-full bg-orange-50/30 dark:bg-[#010404] text-slate-900 dark:text-emerald-50 font-sans">
+      <body className="h-full bg-[#010404] text-slate-900 dark:text-emerald-50 font-sans">
         <div className="flex flex-col min-h-screen">
           
           {!hideGlobalUI && (
-            <header className="flex items-center justify-between px-6 py-6 sticky top-0 z-[60] bg-white/60 dark:bg-[#010404]/60 backdrop-blur-3xl border-b border-orange-200/20 dark:border-emerald-500/10">
+            <header className="flex items-center justify-between px-6 py-6 sticky top-0 z-[60] bg-[#010404]/60 backdrop-blur-3xl border-b border-white/5">
               <Link href="/" className="text-2xl font-black italic uppercase tracking-tighter">
                 Tara<span className="text-orange-500">!</span>
               </Link>
@@ -54,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {user ? (
                   <div className="flex items-center gap-4">
                      <Link href="/profile" className="h-8 w-8 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-xs">👤</Link>
-                     <button onClick={handleLogout} className="text-[9px] font-black uppercase tracking-[0.2em] text-red-500 opacity-60">Out</button>
+                     <button onClick={handleLogout} className="text-[9px] font-black uppercase text-red-500 opacity-60">Out</button>
                   </div>
                 ) : (
                   <Link href="/login" className="text-[10px] font-black uppercase tracking-widest text-white bg-orange-500 px-6 py-2 rounded-full shadow-lg">Login</Link>
@@ -65,7 +64,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <main className="flex-1 relative">{children}</main>
 
-          {/* MASTER DOCK: Reorganized Stack */}
           {!hideGlobalUI && (
             <Suspense fallback={null}>
               <MasterNavigation pathname={pathname} />
@@ -83,13 +81,11 @@ function MasterNavigation({ pathname }: { pathname: string }) {
   const activeFilter = searchParams.get('filter') || 'all';
 
   const setFilter = (f: string) => {
-    router.push(`/?filter=${f}`);
+    router.push(`/?filter=${f}&t=${Date.now()}`);
   };
 
   return (
     <nav className="fixed bottom-6 left-4 right-4 z-[100] max-w-sm mx-auto flex flex-col gap-3 p-3 bg-white/95 dark:bg-[#0d2626]/95 backdrop-blur-3xl rounded-[2.5rem] border border-orange-100 dark:border-emerald-900/30 shadow-2xl">
-      
-      {/* Row 1 (Top): Quick-Filters */}
       {pathname === '/' && (
         <div className="flex items-center gap-1 bg-black/5 dark:bg-black/40 p-1 rounded-full">
           {['all', 'top', 'upcoming'].map((f) => (
@@ -102,13 +98,11 @@ function MasterNavigation({ pathname }: { pathname: string }) {
                   : 'text-slate-400 dark:text-white/20 hover:text-orange-500'
               }`}
             >
-              {f === 'all' ? 'All' : f === 'top' ? 'Top' : 'Next'}
+              {f === 'all' ? 'All Events' : f === 'top' ? 'Top Picks' : 'Upcoming'}
             </button>
           ))}
         </div>
       )}
-
-      {/* Row 2 (Bottom): Main App Links */}
       <div className={`flex items-center justify-around ${pathname === '/' ? 'pt-1' : 'py-2'}`}>
         <NavLink href="/" active={pathname === '/'} label="Explore" icon="🏝️" />
         <NavLink href="/messages" active={pathname === '/messages'} label="Pulse" icon="🔥" />
