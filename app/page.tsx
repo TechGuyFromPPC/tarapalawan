@@ -1,141 +1,121 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default function Home() {
-  const [events, setEvents] = useState<any[]>([]);
-  const [category, setCategory] = useState('All');
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const activeFilter = searchParams.get('filter') || 'all';
+  
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  const categories = ['All', 'Nightlife', 'Adventure', 'Food', 'Culture'];
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      const { data } = await supabase
-        .from('events')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const fetchData = async () => {
+      const { data } = await supabase.from('events').select('*').order('event_date', { ascending: true });
       setEvents(data || []);
-      setLoading(false);
+      if (data) {
+        const uniqueCats = Array.from(new Set(data.map((e) => e.category))).filter(Boolean) as string[];
+        setCategories(uniqueCats);
+      }
     };
-    fetchEvents();
+    fetchData();
   }, []);
 
-  const filteredEvents = events.filter(e => {
-    const matchesCategory = category === 'All' || e.category?.toLowerCase() === category.toLowerCase();
-    const matchesSearch = e.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          e.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+  // Sync sidebar with filter clicks
+  useEffect(() => {
+    if (activeFilter !== 'all') setIsSidebarOpen(true);
+  }, [activeFilter]);
+
+  const filteredEvents = events.filter((e) => {
+    const matchesSearch = `${e.title} ${e.category} ${e.location}`.toLowerCase().includes(searchQuery.toLowerCase());
+    if (activeFilter === 'top') return matchesSearch && e.is_featured;
+    if (activeFilter === 'upcoming') return matchesSearch && new Date(e.event_date) >= new Date();
+    return matchesSearch;
   });
 
-  const topPicks = events.slice(0, 3);
+  return (
+    <div className="relative min-h-[100dvh] bg-[#010404] text-slate-200 overflow-hidden flex flex-col items-center justify-start px-6 antialiased">
+      
+      {/* BACKGROUND EFFECTS */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute -top-[15%] -left-[20%] w-[150vw] h-[120vh] bg-[linear-gradient(135deg,transparent_40%,#10b981_45%,#f97316_50%,#10b981_55%,transparent_60%)] blur-[100px] animate-aurora opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#010404] via-transparent to-black/80" />
+      </div>
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
-      <div className="text-[10px] font-black uppercase tracking-[0.5em] animate-pulse text-blue-600">Syncing...</div>
+      {/* HERO SECTION */}
+      <div className="relative z-10 mt-16 flex flex-col items-center gap-10 text-center w-full max-w-2xl">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-orange-500 rounded-xl rotate-45 flex items-center justify-center shadow-lg border border-white/20">
+            <span className="text-white font-black text-xl -rotate-45 italic">P</span>
+          </div>
+          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-emerald-400">Puerto Princesa</p>
+        </div>
+
+        <h1 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white leading-[0.9]">
+          What are you <br/>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-white to-orange-400">seeking?</span>
+        </h1>
+
+        <div className="relative group w-full max-w-md mx-auto">
+          <form onSubmit={(e) => { e.preventDefault(); setIsSidebarOpen(true); }} className="relative flex items-center bg-black/40 border border-white/10 rounded-full p-1.5 pl-6 backdrop-blur-xl">
+            <input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search adventures..."
+              className="flex-1 bg-transparent py-3 text-white outline-none placeholder:text-white/20 text-sm"
+            />
+            <button type="submit" className="h-10 w-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" /></svg>
+            </button>
+          </form>
+        </div>
+
+        {/* Categories - Extra Padding Bottom for Master Nav */}
+        <div className="flex overflow-x-auto no-scrollbar w-full gap-2 px-2 pb-64">
+          {categories.map((cat) => (
+            <button key={cat} onClick={() => {setSearchQuery(cat); setIsSidebarOpen(true);}} className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[9px] font-black uppercase border transition-all ${searchQuery === cat ? 'bg-orange-500 border-orange-400 text-white' : 'bg-white/5 border-white/10 text-emerald-400'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* SIDEBAR (Higher Z-Index than Nav) */}
+      <aside className={`fixed top-0 left-0 h-full w-full md:w-[400px] bg-[#010404]/98 border-r border-white/10 z-[200] p-8 transition-transform duration-500 backdrop-blur-3xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-xl font-black italic uppercase text-white tracking-tighter underline decoration-emerald-500 decoration-4">The Pulse</h2>
+          <button onClick={() => setIsSidebarOpen(false)} className="text-white/20 text-2xl hover:text-white transition-colors">✕</button>
+        </div>
+        
+        <div className="space-y-4 overflow-y-auto h-[calc(100dvh-100px)] no-scrollbar pb-64">
+          {filteredEvents.map(event => (
+            <div key={event.id} className="group flex gap-4 items-center bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-emerald-500/30 transition-all">
+               <div className="h-14 w-14 rounded-xl overflow-hidden bg-emerald-900/20 shrink-0 border border-white/5">
+                {event.image_url && <img src={event.image_url} className="h-full w-full object-cover" alt="" />}
+              </div>
+              <div className="flex-1">
+                <span className="text-[8px] font-black uppercase text-orange-500">{event.category}</span>
+                <h3 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">{event.title}</h3>
+                <p className="text-[10px] text-white/40">{event.location}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Background Dimmer when Sidebar is open */}
+      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150]" />}
     </div>
   );
+}
 
+export default function Home() {
   return (
-    <div className="bg-white dark:bg-black min-h-screen pb-32">
-      
-      {/* 1. NEW STICKY SEARCH HEADER */}
-     {/* 1. STICKY SEARCH HEADER - Fixed clipping issue */}
-<div className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-2xl px-6 pt-16 pb-6">
-  <div className="flex flex-col gap-6">
-    <div className="overflow-visible"> {/* Added to prevent italic clipping */}
-      <h1 className="text-5xl md:text-6xl font-black italic uppercase tracking-tighter leading-[1.1] text-slate-900 dark:text-white">
-        The <span className="text-blue-600">Pulse</span>
-      </h1>
-    </div>
-    
-    {/* NOTICEABLE SEARCH BAR */}
-    <div className="relative group">
-      <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-blue-600">
-        <span className="text-lg">🔍</span>
-      </div>
-      <input 
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        placeholder="Find your next adventure..."
-        className="w-full bg-slate-100 dark:bg-zinc-900 border-2 border-transparent focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-bold placeholder:text-slate-400 dark:placeholder:text-zinc-600 transition-all shadow-inner outline-none"
-      />
-    </div>
-  </div>
-</div>
-
-      {/* 2. TOP PICKS (Hide when searching) */}
-      {!searchQuery && (
-        <section className="mt-4 mb-12">
-          <div className="px-6 mb-4 flex justify-between items-end">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Top Picks</h2>
-          </div>
-          <div className="flex overflow-x-auto gap-6 px-6 no-scrollbar snap-x">
-            {topPicks.map((event) => (
-              <Link key={`top-${event.id}`} href={`/event/${event.id}`} className="min-w-[300px] snap-center">
-                <div className="relative aspect-[16/10] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 dark:border-zinc-800">
-                  <img src={event.image_url} className="h-full w-full object-cover" alt="" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
-                  <div className="absolute bottom-6 left-6 right-6">
-                    <h3 className="text-xl font-black text-white uppercase italic tracking-tighter leading-none">
-                      {event.title}
-                    </h3>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 3. CATEGORY SELECTOR */}
-      <section className="px-6 mb-10 overflow-x-auto no-scrollbar flex gap-3">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategory(cat)}
-            className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
-              category === cat 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40' 
-                : 'bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </section>
-
-      {/* 4. MAIN FEED */}
-      <section className="px-6 space-y-12">
-        {filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => (
-            <Link key={event.id} href={`/event/${event.id}`} className="block group">
-              <div className="relative aspect-[4/5] overflow-hidden rounded-[3.5rem] bg-slate-100 dark:bg-zinc-900 shadow-xl">
-                <img src={event.image_url} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
-                <div className="absolute top-8 left-8 px-5 py-2 bg-white/20 backdrop-blur-xl border border-white/30 rounded-full text-[9px] font-black uppercase text-white tracking-widest">
-                  {event.category}
-                </div>
-              </div>
-              <div className="mt-6 px-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{event.join_count || 0} Pulse</span>
-                </div>
-                <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-none group-hover:text-blue-600 transition-colors">{event.title}</h2>
-              </div>
-            </Link>
-          ))
-        ) : (
-          <div className="py-20 text-center flex flex-col items-center">
-            <span className="text-4xl mb-4">🏜️</span>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Nothing found for "{searchQuery}"</p>
-          </div>
-        )}
-      </section>
-    </div>
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

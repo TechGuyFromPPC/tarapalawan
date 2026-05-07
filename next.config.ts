@@ -1,7 +1,9 @@
+// next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // We can leave experimental empty now that your root directory is fixed!
+  experimental: {},
 };
 
 export default nextConfig;
